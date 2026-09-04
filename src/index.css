@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: #060a12;
+    color: #e2e8f0;
+    overflow-x: hidden;
+  }
+
+  /* Custom thin cybersecurity scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0a0e1a;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #1c2b4a;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #25375d;
+  }
+}
+
+/* React Flow custom styling overrides for cyber dark theme */
+.react-flow__background {
+  background-color: #080c16 !important;
+}
+
+.react-flow__controls {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+  border: 1px solid #1c2b4a !important;
+  background: #0d1322 !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  background: #0d1322 !important;
+  border-bottom: 1px solid #1c2b4a !important;
+  fill: #94a3b8 !important;
+  color: #94a3b8 !important;
+}
+
+.react-flow__controls-button:hover {
+  background: #16223b !important;
+  fill: #3b82f6 !important;
+  color: #3b82f6 !important;
+}
+
+.react-flow__minimap {
+  background-color: #090e1a !important;
+  border: 1px solid #1c2b4a !important;
+  border-radius: 8px !important;
+}
+
+/* Print Styles for Formal Investigation Report */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+  }
+
+  .print-text-dark {
+    color: #0f172a !important;
+  }
+
+  .print-border {
+    border-color: #cbd5e1 !important;
+  }
+}
