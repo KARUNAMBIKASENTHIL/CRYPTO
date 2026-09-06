@@ -58,10 +58,22 @@ interface LiveInvestigationContextType {
   connectMetaMask: () => Promise<string | null>;
   sendLiveTransaction: (to: string, amount: string, from?: string) => Promise<string>;
   dispatchHopTransaction: (params: { from: string; to: string; amount: string; viaMetaMask?: boolean; hopLabel?: string }) => Promise<string>;
+  officer: OfficerProfile | null;
+  loginOfficer: (profile: OfficerProfile) => void;
+  logoutOfficer: () => void;
   dismissAlert: () => void;
 }
 
+export interface OfficerProfile {
+  name: string;
+  badgeId: string;
+  email: string;
+  agency: string;
+  department: string;
+}
+
 const STORAGE_CASES_KEY = 'crypto_trace_clean_dockets_v3';
+const STORAGE_OFFICER_KEY = 'crypto_trace_officer_session_v1';
 
 const LiveInvestigationContext = createContext<LiveInvestigationContextType | undefined>(undefined);
 
@@ -87,6 +99,30 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
     latestBlockHeight: 25904935,
   });
 
+  // Officer Session
+  const [officer, setOfficer] = useState<OfficerProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_OFFICER_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+
+  const loginOfficer = useCallback((profile: OfficerProfile) => {
+    setOfficer(profile);
+    try {
+      localStorage.setItem(STORAGE_OFFICER_KEY, JSON.stringify(profile));
+    } catch {}
+  }, []);
+
+  const logoutOfficer = useCallback(() => {
+    setOfficer(null);
+    setConnectedAccount(null);
+    try {
+      localStorage.removeItem(STORAGE_OFFICER_KEY);
+    } catch {}
+  }, []);
+
   // Zero mock/pre-seeded cases: starts completely fresh
   const [cases, setCases] = useState<InvestigationCase[]>(() => {
     try {
@@ -107,7 +143,7 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
   const [currentCaseMeta, setCurrentCaseMeta] = useState<Partial<InvestigationCase>>({
     caseId: 'CASE-LIVE-001',
     title: 'Fresh Ledger Investigation',
-    leadInvestigator: 'Active Investigator',
+    leadInvestigator: officer ? `${officer.name} (${officer.badgeId})` : 'Active Investigator',
     createdDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
   });
 
@@ -134,7 +170,7 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
     riskLevel: suspectAddress ? analysis.riskLevel : 'LOW',
     riskScore: suspectAddress ? analysis.totalScore : 0,
     status: suspectAddress ? 'Under Investigation' : 'Active',
-    leadInvestigator: connectedAccount ? `Investigator (${connectedAccount.slice(0, 6)}...${connectedAccount.slice(-4)})` : 'Active Investigator',
+    leadInvestigator: officer ? `${officer.name} (${officer.badgeId})` : (connectedAccount ? `Investigator (${connectedAccount.slice(0, 6)}...${connectedAccount.slice(-4)})` : 'Active Investigator'),
     createdDate: currentCaseMeta.createdDate || new Date().toISOString().slice(0, 10),
     lastUpdated: latestAlert ? 'Just now (Live On-Chain Tx)' : 'Live Ledger Synced',
     totalTransactions: transactions.length || txCount,
@@ -482,6 +518,9 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
         connectMetaMask,
         sendLiveTransaction,
         dispatchHopTransaction,
+        officer,
+        loginOfficer,
+        logoutOfficer,
         dismissAlert,
       }}
     >

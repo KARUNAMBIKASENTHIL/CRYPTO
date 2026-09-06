@@ -7,7 +7,9 @@ import {
   Shield,
   ExternalLink,
   Wallet,
+  LogOut,
 } from 'lucide-react';
+import { useLiveInvestigation } from '../../context/LiveInvestigationContext';
 
 export type NavigationPage =
   | 'landing'
@@ -26,6 +28,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentPage,
   onNavigate,
 }) => {
+  const { officer, logoutOfficer } = useLiveInvestigation();
   const navItems = [
     { id: 'dashboard' as NavigationPage, label: 'Dashboard', icon: LayoutDashboard },
     { id: 'wallet-analysis' as NavigationPage, label: 'Investigate Wallet', icon: Search, badge: 'Live' },
@@ -95,13 +98,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Bottom Footer */}
       <div className="p-3 border-t border-navy-750 space-y-2">
-        <button
-          onClick={() => onNavigate('landing')}
-          className="w-full px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-200 hover:bg-navy-850 transition-colors flex items-center justify-between font-mono"
-        >
-          <span>Landing Page</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </button>
+        {officer && (
+          <div className="bg-navy-850/80 p-2.5 rounded-lg border border-navy-750">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono text-blue-400 font-bold uppercase">{officer.badgeId}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            </div>
+            <div className="text-xs font-semibold text-slate-200 truncate mt-0.5">{officer.name}</div>
+            <div className="text-[10px] text-slate-400 truncate">{officer.agency}</div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => onNavigate('landing')}
+            className="flex-1 px-2.5 py-1.5 rounded-lg text-[11px] text-slate-400 hover:text-slate-200 hover:bg-navy-850 transition-colors flex items-center justify-between font-mono"
+          >
+            <span>Landing</span>
+            <ExternalLink className="w-3 h-3" />
+          </button>
+          {officer && (
+            <button
+              onClick={logoutOfficer}
+              title="Sign Out Officer Session"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-950/40 border border-transparent hover:border-red-900/50 transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </aside>
   );

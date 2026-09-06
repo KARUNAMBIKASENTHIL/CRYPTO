@@ -18,7 +18,7 @@ interface TopBarProps {
 }
 
 export const TopBar: React.FC<TopBarProps> = ({ onSearch, currentCaseId }) => {
-  const { liveNetworkStats, recentAlerts, network, connectedAccount } = useLiveInvestigation();
+  const { liveNetworkStats, recentAlerts, network, connectedAccount, officer, logoutOfficer } = useLiveInvestigation();
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -131,38 +131,44 @@ export const TopBar: React.FC<TopBarProps> = ({ onSearch, currentCaseId }) => {
             className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-lg hover:bg-navy-850 border border-transparent hover:border-navy-750 transition-colors"
           >
             <div className="w-7 h-7 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-bold text-xs">
-              {connectedAccount ? connectedAccount.slice(2, 4).toUpperCase() : 'AI'}
+              {officer ? officer.name.slice(0, 2).toUpperCase() : (connectedAccount ? connectedAccount.slice(2, 4).toUpperCase() : 'CC')}
             </div>
             <div className="text-left hidden sm:block">
               <div className="text-xs font-medium text-slate-200 flex items-center gap-1.5 leading-none">
-                {connectedAccount ? `${connectedAccount.slice(0, 6)}...${connectedAccount.slice(-4)}` : 'Investigator Console'}
+                {officer ? officer.name.split(' ')[0] : (connectedAccount ? `${connectedAccount.slice(0, 6)}...${connectedAccount.slice(-4)}` : 'Investigator')}
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </div>
               <div className="text-[10px] font-mono text-slate-400 leading-none mt-1">
-                {connectedAccount ? 'MetaMask Verified' : 'Live Forensic Mode'}
+                {officer?.badgeId || (connectedAccount ? 'MetaMask Verified' : 'Cyber Cell')}
               </div>
             </div>
           </button>
 
           {showProfile && (
-            <div className="absolute right-0 mt-2 w-64 bg-navy-850 border border-navy-700 rounded-xl shadow-2xl py-2 z-50">
+            <div className="absolute right-0 mt-2 w-72 bg-navy-850 border border-navy-700 rounded-xl shadow-2xl py-2 z-50">
               <div className="px-4 py-2 border-b border-navy-750">
                 <p className="text-xs font-semibold text-slate-200">
-                  {connectedAccount ? `Connected: ${connectedAccount.slice(0, 8)}...${connectedAccount.slice(-4)}` : 'On-Chain Investigator'}
+                  {officer?.name || 'On-Chain Investigator'}
                 </p>
-                <p className="text-[10px] font-mono text-slate-400">
-                  {connectedAccount ? 'EVM Web3 Provider Linked' : 'Standalone Forensic Audit Mode'}
+                <p className="text-[10px] font-mono text-blue-400 mt-0.5">
+                  {officer?.badgeId} • {officer?.agency}
                 </p>
-                <div className="mt-1.5 flex items-center gap-1 text-[10px] font-mono text-emerald-400">
+                <div className="mt-2 flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
                   <CheckCircle2 className="w-3 h-3" />
-                  <span>{connectedAccount ? 'MetaMask Active' : 'Live Ledger Connected'}</span>
+                  <span>{connectedAccount ? `MetaMask: ${connectedAccount.slice(0, 6)}...${connectedAccount.slice(-4)}` : 'Read-Only Ledger Mode'}</span>
                 </div>
               </div>
 
-              <div className="p-2 text-xs text-slate-300">
+              <div className="p-2 text-xs text-slate-300 space-y-1">
                 <div className="px-2 py-1.5 text-[11px] text-slate-400 font-mono">
                   Active Case: <span className="text-blue-400 font-bold">{currentCaseId}</span>
                 </div>
+                <button
+                  onClick={logoutOfficer}
+                  className="w-full text-left px-2 py-1.5 rounded-lg text-xs font-mono text-red-400 hover:bg-red-950/40 hover:text-red-300 transition-colors flex items-center gap-2"
+                >
+                  <span>Sign Out Session</span>
+                </button>
               </div>
             </div>
           )}

@@ -7,16 +7,22 @@ import { WalletAnalysis } from './components/analysis/WalletAnalysis';
 import { ActiveCases } from './components/cases/ActiveCases';
 import { InvestigationReport } from './components/reports/InvestigationReport';
 import { LiveTransactionConsole } from './components/live/LiveTransactionConsole';
+import { OfficerLogin } from './components/auth/OfficerLogin';
+import { ConnectMetaMaskModal } from './components/auth/ConnectMetaMaskModal';
 import { LiveInvestigationProvider, useLiveInvestigation } from './context/LiveInvestigationContext';
 
 function MainInvestigationApp() {
   const [currentPage, setCurrentPage] = useState<NavigationPage>('dashboard');
   const [searchNotification, setSearchNotification] = useState<string | null>(null);
+  const [showMetaMaskModal, setShowMetaMaskModal] = useState(false);
 
   const {
     currentCase,
     setMonitoredAddress,
     cases,
+    officer,
+    loginOfficer,
+    connectedAccount,
   } = useLiveInvestigation();
 
   const handleSearch = async (query: string) => {
@@ -35,6 +41,21 @@ function MainInvestigationApp() {
     setTimeout(() => setSearchNotification(null), 3500);
   };
 
+  // 1. Mandatory Officer Authentication Step
+  if (!officer) {
+    return (
+      <OfficerLogin
+        onLogin={(profile) => {
+          loginOfficer(profile);
+          // Show Step 2: MetaMask connection modal immediately after login!
+          if (!connectedAccount) {
+            setShowMetaMaskModal(true);
+          }
+        }}
+      />
+    );
+  }
+
   if (currentPage === 'landing') {
     return (
       <LandingPage
@@ -47,6 +68,11 @@ function MainInvestigationApp() {
 
   return (
     <div className="min-h-screen bg-navy-950 text-slate-100 flex">
+      {/* Step 2: Post-Login MetaMask Onboarding Prompt */}
+      {showMetaMaskModal && (
+        <ConnectMetaMaskModal onComplete={() => setShowMetaMaskModal(false)} />
+      )}
+
       {/* Sleek 4-tab Sidebar */}
       <Sidebar
         currentPage={currentPage}
