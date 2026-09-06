@@ -63,12 +63,19 @@ export const WalletAnalysis: React.FC = () => {
             <Search className="w-7 h-7" />
           </div>
 
+          {connectedAccount && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-800/50 text-emerald-300 font-mono text-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Logged in as Investigator: {connectedAccount.slice(0, 6)}...{connectedAccount.slice(-4)}</span>
+            </div>
+          )}
+
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-slate-100 tracking-tight">
-              Investigate Any Blockchain Wallet
+              Investigate Suspect Wallet (Wallet B)
             </h1>
             <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
-              Enter any Ethereum or EVM wallet address to trace fund flows, inspect transactions, and evaluate risk.
+              Enter the fraudster/suspect wallet address to trace fund origins, multi-hop laundering chains, and cash-out exchanges.
             </p>
           </div>
 
@@ -78,25 +85,34 @@ export const WalletAnalysis: React.FC = () => {
                 type="text"
                 value={manualInput}
                 onChange={(e) => setManualInput(e.target.value)}
-                placeholder="Paste EVM Address (0x...)"
+                placeholder="Enter Suspect Wallet B Address (0x...)"
                 className="w-full bg-navy-850 border border-navy-700 text-slate-100 px-4 py-3 rounded-xl font-mono text-xs focus:outline-none focus:border-blue-500 transition-colors"
               />
             </div>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="submit"
                 className="px-5 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all shadow-cyber-sm"
               >
-                Inspect Address
+                Inspect Suspect Address
               </button>
               <button
                 type="button"
-                onClick={connectMetaMask}
-                className="px-4 py-2.5 rounded-lg bg-navy-850 hover:bg-navy-800 text-slate-200 border border-navy-700 text-xs font-mono font-medium transition-colors flex items-center gap-2"
+                onClick={() => setMonitoredAddress('0x71c6bf4840b157fdb520a564e69d702202a64ee5', network)}
+                className="px-4 py-2.5 rounded-lg bg-navy-850 hover:bg-navy-800 text-slate-200 border border-navy-700 text-xs font-mono font-medium transition-colors"
               >
-                <Wallet className="w-3.5 h-3.5 text-emerald-400" />
-                <span>{connectedAccount ? 'Use My Connected Wallet' : 'Connect MetaMask'}</span>
+                Inspect Demo Suspect (0x71c6...4ee5)
               </button>
+              {!connectedAccount && (
+                <button
+                  type="button"
+                  onClick={connectMetaMask}
+                  className="px-4 py-2.5 rounded-lg bg-navy-850 hover:bg-navy-800 text-slate-200 border border-navy-700 text-xs font-mono font-medium transition-colors flex items-center gap-2"
+                >
+                  <Wallet className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Connect Investigator MetaMask</span>
+                </button>
+              )}
             </div>
           </form>
         </div>

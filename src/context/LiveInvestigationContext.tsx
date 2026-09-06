@@ -56,7 +56,8 @@ interface LiveInvestigationContextType {
   setMonitoredAddress: (address: string, net?: BlockchainNetwork, caseDetails?: Partial<InvestigationCase>) => Promise<void>;
   toggleLiveListening: () => void;
   connectMetaMask: () => Promise<string | null>;
-  sendLiveTransaction: (to: string, amount: string) => Promise<string>;
+  sendLiveTransaction: (to: string, amount: string, from?: string) => Promise<string>;
+  dispatchHopTransaction: (params: { from: string; to: string; amount: string; viaMetaMask?: boolean; hopLabel?: string }) => Promise<string>;
   dismissAlert: () => void;
 }
 
@@ -128,7 +129,7 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
     title: currentCaseMeta.title || (suspectAddress ? `Audit of ${suspectAddress.slice(0, 8)}...` : 'Fresh Investigation'),
     suspectWallet: suspectAddress || '0x0000000000000000000000000000000000000000',
     suspectShortWallet: suspectAddress ? `${suspectAddress.slice(0, 8)}...${suspectAddress.slice(-4)}` : 'None Selected',
-    victimWallet: analysis.primaryVictim,
+    victimWallet: currentCaseMeta.victimWallet || (analysis.primaryVictim && analysis.primaryVictim !== '0x0000000000000000000000000000000000000000' ? analysis.primaryVictim : (connectedAccount || '0x0000000000000000000000000000000000000000')),
     network,
     riskLevel: suspectAddress ? analysis.riskLevel : 'LOW',
     riskScore: suspectAddress ? analysis.totalScore : 0,
@@ -217,7 +218,7 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
   );
 
   /**
-   * Auto-detect connected MetaMask account on mount
+   * Auto-detect connected MetaMask account on mount (as Investigator / Victim only)
    */
   useEffect(() => {
     const ethereum = (window as unknown as { ethereum?: any })?.ethereum;
@@ -228,15 +229,16 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
           if (accounts && accounts[0]) {
             const userWallet = accounts[0];
             setConnectedAccount(userWallet);
-            setMonitoredAddress(userWallet, 'Ethereum', {
-              caseId: 'CASE-LIVE-001',
-              title: `Live Wallet Audit: ${userWallet.slice(0, 6)}...${userWallet.slice(-4)}`,
-            });
+            setCurrentCaseMeta((prev) => ({
+              ...prev,
+              leadInvestigator: `Investigator (${userWallet.slice(0, 6)}...${userWallet.slice(-4)})`,
+              victimWallet: prev.victimWallet || userWallet,
+            }));
           }
         })
         .catch(() => {});
     }
-  }, [setMonitoredAddress]);
+  }, []);
 
   /**
    * Add a new investigation case
@@ -261,7 +263,7 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
   }, []);
 
   /**
-   * Connect MetaMask / Web3 Wallet and automatically monitor that address
+   * Connect MetaMask as the Authorized Investigator / Victim
    */
   const connectMetaMask = useCallback(async (): Promise<string | null> => {
     const ethereum = (window as unknown as { ethereum?: any }).ethereum;
@@ -278,40 +280,12 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
         const userWallet = accounts[0];
         setConnectedAccount(userWallet);
 
-        // Immediately monitor the connected user wallet fresh
-        await setMonitoredAddress(userWallet, network, {
-          caseId: `CASE-${new Date().getFullYear()}-001`,
-          title: `Connected Wallet: ${userWallet.slice(0, 6)}...${userWallet.slice(-4)}`,
+        // Mark user as the Investigator and Victim reporting entity (NOT the suspect)
+        setCurrentCaseMeta((prev) => ({
+          ...prev,
           leadInvestigator: `Investigator (${userWallet.slice(0, 6)}...${userWallet.slice(-4)})`,
-        });
-
-        // Add this real live case to active cases
-        const newCaseRecord: InvestigationCase = {
-          caseId: `CASE-${new Date().getFullYear()}-001`,
-          title: `Connected Wallet: ${userWallet.slice(0, 6)}...${userWallet.slice(-4)}`,
-          suspectWallet: userWallet,
-          suspectShortWallet: `${userWallet.slice(0, 8)}...${userWallet.slice(-4)}`,
-          victimWallet: 'None (Direct Audit)',
-          network,
-          riskLevel: 'LOW',
-          riskScore: 0,
-          status: 'Active',
-          leadInvestigator: `Investigator (${userWallet.slice(0, 6)}...${userWallet.slice(-4)})`,
-          createdDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          lastUpdated: 'Live Connected',
-          totalTransactions: 0,
-          connectedWallets: 0,
-          intermediaryCount: 0,
-          totalValueTraced: '0.00 ETH',
-          totalValueUsd: '$0',
-          possibleDestination: 'Personal Wallet',
-          notes: 'Directly linked via connected MetaMask wallet.',
-        };
-
-        setCases((prev) => {
-          const exists = prev.some((c) => c.suspectWallet.toLowerCase() === userWallet.toLowerCase());
-          return exists ? prev : [newCaseRecord, ...prev];
-        });
+          victimWallet: userWallet,
+        }));
 
         return userWallet;
       }
@@ -320,27 +294,40 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
       console.error('User rejected wallet connection', err);
       return null;
     }
-  }, [network, setMonitoredAddress]);
+  }, []);
 
   /**
-   * Send Live Transaction (via MetaMask or simulated live broadcast) and trigger real-time detection
+   * Multi-Hop Transaction Dispatcher (Supports Hop 1: A->B, Hop 2: B->C, Hop 3: C->Exchange)
    */
-  const sendLiveTransaction = useCallback(
-    async (toAddress: string, amountEth: string): Promise<string> => {
+  const dispatchHopTransaction = useCallback(
+    async ({
+      from,
+      to,
+      amount,
+      viaMetaMask = false,
+      hopLabel,
+    }: {
+      from: string;
+      to: string;
+      amount: string;
+      viaMetaMask?: boolean;
+      hopLabel?: string;
+    }): Promise<string> => {
       const ethereum = (window as unknown as { ethereum?: any }).ethereum;
       let txHash = '';
 
-      if (connectedAccount && ethereum) {
+      // If user requested live MetaMask signing and sender matches their MetaMask wallet
+      if (viaMetaMask && connectedAccount && ethereum && from.toLowerCase() === connectedAccount.toLowerCase()) {
         try {
           const provider = new ethers.BrowserProvider(ethereum);
           const signer = await provider.getSigner();
           const tx = await signer.sendTransaction({
-            to: toAddress,
-            value: ethers.parseEther(amountEth || '0.001'),
+            to: to,
+            value: ethers.parseEther(amount || '0.01'),
           });
           txHash = tx.hash;
         } catch (err: any) {
-          console.warn('MetaMask transaction cancelled or failed, triggering cryptographic hash broadcast', err);
+          console.warn('MetaMask transaction cancelled or failed, falling back to cryptographic simulation', err);
         }
       }
 
@@ -350,26 +337,45 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
       }
 
       const currentPrice = parseFloat(liveNetworkStats.coinPrice.replace('$', '')) || 2450;
+      const cleanFrom = from.trim();
+      const cleanTo = to.trim();
+
+      // If Hop 1: Inflow from MetaMask/Victim to Suspect Wallet B
+      if (
+        connectedAccount &&
+        cleanFrom.toLowerCase() === connectedAccount.toLowerCase() &&
+        (!suspectAddress || suspectAddress.toLowerCase() !== cleanTo.toLowerCase())
+      ) {
+        setSuspectAddress(cleanTo);
+        setCurrentCaseMeta((prev) => ({
+          ...prev,
+          caseId: `CASE-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+          title: `Forensic Audit of Suspect ${cleanTo.slice(0, 8)}...`,
+          victimWallet: cleanFrom,
+          suspectWallet: cleanTo,
+        }));
+      }
+
       const newRecord: TransactionRecord = {
         hash: txHash,
         shortHash: `${txHash.slice(0, 8)}...${txHash.slice(-4)}`,
-        from: connectedAccount || suspectAddress || '0x67aC391290348B284918237491823749182C505e',
-        shortFrom: `${(connectedAccount || suspectAddress || '0x67aC3...C505e').slice(0, 6)}...${(connectedAccount || suspectAddress || '0x67aC3...C505e').slice(-4)}`,
-        to: toAddress,
-        shortTo: `${toAddress.slice(0, 6)}...${toAddress.slice(-4)}`,
-        amount: `${amountEth} ETH`,
+        from: cleanFrom,
+        shortFrom: `${cleanFrom.slice(0, 6)}...${cleanFrom.slice(-4)}`,
+        to: cleanTo,
+        shortTo: `${cleanTo.slice(0, 6)}...${cleanTo.slice(-4)}`,
+        amount: `${amount} ETH`,
         token: 'ETH',
-        valueUsd: `$${(parseFloat(amountEth) * currentPrice).toFixed(0)}`,
+        valueUsd: `$${(parseFloat(amount) * currentPrice).toFixed(0)}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         status: 'Completed',
-        risk: parseFloat(amountEth) > 1 ? 'High' : 'Medium',
+        risk: parseFloat(amount) > 0.5 ? 'High' : 'Medium',
         fee: '0.0012 ETH',
       };
 
       // Play audio alert chime
       playLiveAlertSound();
 
-      // Create live alert payload
+      // Create live alert notification banner
       const alertPayload: LiveAlertPayload = {
         id: `alert-${Date.now()}`,
         txHash,
@@ -378,8 +384,12 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
         amount: newRecord.amount,
         timestamp: newRecord.timestamp,
         blockNumber: liveNetworkStats.latestBlockHeight,
-        type: 'ON-CHAIN TX BROADCAST',
-        description: `Live outbound transfer of ${newRecord.amount} to ${newRecord.shortTo} detected.`,
+        type:
+          hopLabel ||
+          (cleanFrom.toLowerCase() === suspectAddress.toLowerCase()
+            ? 'SUSPECT OUTFLOW HOP DETECTED'
+            : 'ON-CHAIN TX BROADCAST'),
+        description: `Live transfer of ${newRecord.amount} from ${newRecord.shortFrom} ➔ ${newRecord.shortTo}. On-chain trail recorded.`,
       };
 
       setLatestAlert(alertPayload);
@@ -389,6 +399,22 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
       return txHash;
     },
     [connectedAccount, suspectAddress, liveNetworkStats]
+  );
+
+  /**
+   * Send live transaction wrapper (Backwards compatible)
+   */
+  const sendLiveTransaction = useCallback(
+    async (toAddress: string, amountEth: string, fromAddress?: string): Promise<string> => {
+      const from = fromAddress || connectedAccount || suspectAddress || '0x67aC391290348B284918237491823749182C505e';
+      return dispatchHopTransaction({
+        from,
+        to: toAddress,
+        amount: amountEth,
+        viaMetaMask: !!connectedAccount && from.toLowerCase() === connectedAccount.toLowerCase(),
+      });
+    },
+    [connectedAccount, suspectAddress, dispatchHopTransaction]
   );
 
   /**
@@ -455,6 +481,7 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
         toggleLiveListening,
         connectMetaMask,
         sendLiveTransaction,
+        dispatchHopTransaction,
         dismissAlert,
       }}
     >

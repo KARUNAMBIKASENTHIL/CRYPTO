@@ -114,12 +114,12 @@ export const TransactionGraph: React.FC = () => {
 
     // Add Intermediary nodes from genuine transactions
     intermediaries.forEach((inter, idx) => {
-      const xPositions = [150, 450, 300];
-      const yPositions = [330, 330, 460];
+      const xPositions = [300, 120, 480];
+      const yPositions = [350, 490, 490];
       nodesList.push({
         id: `inter${idx + 1}`,
         type: 'customWallet',
-        position: { x: xPositions[idx] || 300, y: yPositions[idx] || 330 },
+        position: { x: xPositions[idx] || 300, y: yPositions[idx] || 350 },
         data: {
           wallet: {
             id: `inter${idx + 1}`,
@@ -136,7 +136,7 @@ export const TransactionGraph: React.FC = () => {
             connectedWalletsCount: 2,
             firstSeen: 'Confirmed Block',
             lastActivity: 'Live Hop',
-            tags: [`Hop ${idx + 1}`, inter.reason],
+            tags: [`Mule Hop ${idx + 1}`, inter.reason],
           },
           isSelected: selectedWallet?.id === `inter${idx + 1}`,
         },
@@ -144,11 +144,11 @@ export const TransactionGraph: React.FC = () => {
     });
 
     // Add Exchange/Endpoint Node if detected
-    if (exchangeAttribution && exchangeAttribution.confidenceScore > 80) {
+    if (exchangeAttribution && exchangeAttribution.confidenceScore > 75) {
       nodesList.push({
         id: 'exchange',
         type: 'customWallet',
-        position: { x: 450, y: 560 },
+        position: { x: 300, y: intermediaries.length > 0 ? 510 : 350 },
         data: {
           wallet: {
             id: 'exchange',
@@ -194,35 +194,45 @@ export const TransactionGraph: React.FC = () => {
 
     // Edge from origin to target
     if (currentCase.victimWallet && currentCase.victimWallet !== '0x0000000000000000000000000000000000000000') {
+      const inTx = transactions.find(
+        (t) =>
+          t.to.toLowerCase() === suspectAddress.toLowerCase() &&
+          t.from.toLowerCase() === currentCase.victimWallet.toLowerCase()
+      );
       edgeList.push({
         id: 'e-origin-target',
         source: 'origin',
         target: 'target',
         type: 'customAmount',
         animated: true,
-        data: { amount: transactions[0]?.amount || currentCase.totalValueTraced },
+        data: { amount: inTx?.amount || transactions[transactions.length - 1]?.amount || '0.05 ETH' },
         markerEnd: { type: MarkerType.ArrowClosed, color: '#10b981' },
       });
     }
 
     // Edges to intermediaries
-    intermediaries.forEach((_inter, idx) => {
+    intermediaries.forEach((inter, idx) => {
+      const outTx = transactions.find(
+        (t) =>
+          t.from.toLowerCase() === suspectAddress.toLowerCase() &&
+          t.to.toLowerCase() === inter.address.toLowerCase()
+      );
       edgeList.push({
         id: `e-target-inter${idx + 1}`,
         source: 'target',
         target: `inter${idx + 1}`,
         type: 'customAmount',
         animated: true,
-        data: { amount: transactions[idx + 1]?.amount || '0.05 ETH' },
-        markerEnd: { type: MarkerType.ArrowClosed, color: '#3b82f6' },
+        data: { amount: outTx?.amount || '0.045 ETH' },
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#f59e0b' },
       });
     });
 
-    // Edge to exchange
-    if (exchangeAttribution && exchangeAttribution.confidenceScore > 80 && intermediaries.length > 0) {
+    // Edge from intermediary to exchange
+    if (exchangeAttribution && exchangeAttribution.confidenceScore > 75 && intermediaries.length > 0) {
       edgeList.push({
         id: 'e-inter-exchange',
-        source: `inter${intermediaries.length}`,
+        source: `inter1`,
         target: 'exchange',
         type: 'customAmount',
         animated: true,
