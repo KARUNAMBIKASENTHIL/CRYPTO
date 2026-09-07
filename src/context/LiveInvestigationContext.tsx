@@ -254,25 +254,38 @@ export const LiveInvestigationProvider: React.FC<{ children: ReactNode }> = ({ c
   );
 
   /**
-   * Auto-detect connected MetaMask account on mount (as Investigator / Victim only)
+   * Auto-detect connected MetaMask account on mount and listen for account changes
    */
   useEffect(() => {
     const ethereum = (window as unknown as { ethereum?: any })?.ethereum;
     if (ethereum) {
+      const handleAccountsChanged = (accounts: string[]) => {
+        if (accounts && accounts[0]) {
+          const userWallet = accounts[0];
+          setConnectedAccount(userWallet);
+          setCurrentCaseMeta((prev) => ({
+            ...prev,
+            leadInvestigator: `Investigator (${userWallet.slice(0, 6)}...${userWallet.slice(-4)})`,
+            // Only update victimWallet if it hasn't been set yet, so we don't overwrite the original victim when acting as suspect
+            victimWallet: prev.victimWallet || userWallet,
+          }));
+        } else {
+          setConnectedAccount(null);
+        }
+      };
+
+      // Get initial accounts
       ethereum
         .request({ method: 'eth_accounts' })
-        .then((accounts: string[]) => {
-          if (accounts && accounts[0]) {
-            const userWallet = accounts[0];
-            setConnectedAccount(userWallet);
-            setCurrentCaseMeta((prev) => ({
-              ...prev,
-              leadInvestigator: `Investigator (${userWallet.slice(0, 6)}...${userWallet.slice(-4)})`,
-              victimWallet: prev.victimWallet || userWallet,
-            }));
-          }
-        })
+        .then(handleAccountsChanged)
         .catch(() => {});
+
+      // Listen for account changes
+      ethereum.on('accountsChanged', handleAccountsChanged);
+
+      return () => {
+        ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      };
     }
   }, []);
 

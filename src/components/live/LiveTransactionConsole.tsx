@@ -73,7 +73,7 @@ export const LiveTransactionConsole: React.FC = () => {
   };
 
   // Execute Hop 2: Suspect (B) -> Intermediary Mule (C)
-  const handleExecuteHop2 = async () => {
+  const handleExecuteHop2 = async (viaMetaMask: boolean) => {
     if (!currentSuspect || !hop2Mule.trim() || !hop2Amount) return;
     setIsSending(true);
     try {
@@ -81,7 +81,7 @@ export const LiveTransactionConsole: React.FC = () => {
         from: currentSuspect,
         to: hop2Mule.trim(),
         amount: hop2Amount,
-        viaMetaMask: false,
+        viaMetaMask: viaMetaMask && !!connectedAccount,
         hopLabel: 'HOP 2: SUSPECT OUTFLOW TO MULE',
       });
       setActiveHopTab('hop3');
@@ -91,7 +91,7 @@ export const LiveTransactionConsole: React.FC = () => {
   };
 
   // Execute Hop 3: Mule (C) -> Exchange (Binance)
-  const handleExecuteHop3 = async () => {
+  const handleExecuteHop3 = async (viaMetaMask: boolean) => {
     if (!currentMule || !hop3Exchange.trim() || !hop3Amount) return;
     setIsSending(true);
     try {
@@ -99,7 +99,7 @@ export const LiveTransactionConsole: React.FC = () => {
         from: currentMule,
         to: hop3Exchange.trim(),
         amount: hop3Amount,
-        viaMetaMask: false,
+        viaMetaMask: viaMetaMask && !!connectedAccount,
         hopLabel: 'HOP 3: MULE TO EXCHANGE OFF-RAMP',
       });
     } finally {
@@ -422,20 +422,43 @@ export const LiveTransactionConsole: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <span className="text-[11px] text-amber-400 font-mono">
                   🚨 This creates the outflow link: Wallet B ➔ Wallet C!
+                  <br/>
+                  <span className="text-slate-400">⚡ To use MetaMask, switch your active account to Wallet B</span>
                 </span>
 
-                <button
-                  type="button"
-                  disabled={isSending}
-                  onClick={handleExecuteHop2}
-                  className="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold font-mono shadow-cyber-sm transition-all flex items-center gap-1.5"
-                >
-                  <ArrowRight className="w-3.5 h-3.5" />
-                  <span>Dispatch Outflow Hop to Wallet C</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isSending}
+                    onClick={() => handleExecuteHop2(false)}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold font-mono shadow-cyber-sm transition-all flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+                    <span>Free Simulation (No Gas)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSending || !connectedAccount}
+                    onClick={() => handleExecuteHop2(true)}
+                    className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-xs font-bold font-mono uppercase shadow-cyber-sm transition-all flex items-center gap-1.5"
+                  >
+                    {isSending ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Broadcasting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>MetaMask Send</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -479,20 +502,43 @@ export const LiveTransactionConsole: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <span className="text-[11px] text-purple-400 font-mono">
                   🏦 Connects terminal hop into Binance Hot Wallet for law enforcement freezing!
+                  <br/>
+                  <span className="text-slate-400">⚡ To use MetaMask, switch your active account to Wallet C</span>
                 </span>
 
-                <button
-                  type="button"
-                  disabled={isSending}
-                  onClick={handleExecuteHop3}
-                  className="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold font-mono shadow-cyber-sm transition-all flex items-center gap-1.5"
-                >
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Dispatch Off-Ramp to Binance</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={isSending}
+                    onClick={() => handleExecuteHop3(false)}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold font-mono shadow-cyber-sm transition-all flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-blue-200" />
+                    <span>Free Simulation (No Gas)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={isSending || !connectedAccount}
+                    onClick={() => handleExecuteHop3(true)}
+                    className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-bold font-mono uppercase shadow-cyber-sm transition-all flex items-center gap-1.5"
+                  >
+                    {isSending ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Broadcasting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="w-3.5 h-3.5" />
+                        <span>MetaMask Send</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
